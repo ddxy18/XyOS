@@ -15,7 +15,7 @@
 
 #include "segment.h"
 
-GDTR gdtr;
+GDTR_t gdtr;
 // gdt points to the null descriptor of the GDT
 segment_descriptor_t *gdt;
 

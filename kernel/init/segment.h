@@ -60,7 +60,7 @@ typedef struct segment_descriptor {
 typedef struct GDTR {
     uint16_t limit;
     uint32_t base_address;
-} GDTR;
+} GDTR_t;
 
 void gdt_init();
 
