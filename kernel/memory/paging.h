@@ -92,4 +92,10 @@ void k_paging_init();
  */
 void u_page_directory_init(page_directory_entry_t *page_directory);
 
+/**
+ * Release all pages stored in 'page_table'.
+ * @param page_table
+ */
+void u_release_pages(page_table_entry_t *page_table);
+
 #endif //XYOS_PAGING_H

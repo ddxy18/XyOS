@@ -114,3 +114,11 @@ void u_page_directory_init(page_directory_entry_t *page_directory) {
         page_directory[i].page_table_addr = k_page_directory[i].page_table_addr;
     }
 }
+
+void u_release_pages(page_table_entry_t *page_table) {
+    for (uint32_t i = 0; i < PTE_MAX_NUM; ++i) {
+        if (page_table[i].page_addr != PTE_ABSENT_ADDR) {
+            release_page(page_number(page_table[i].page_addr));
+        }
+    }
+}
