@@ -17,4 +17,10 @@ typedef struct linked_list {
     linked_list_node_t *head;
 } linked_list_t;
 
+void insert_to_head(linked_list_t list, linked_list_node_t *new_node) {
+    linked_list_node_t *tmp = list.head;
+    new_node->next = tmp->next;
+    tmp->next = new_node;
+}
+
 #endif //XYOS_LIST_H
