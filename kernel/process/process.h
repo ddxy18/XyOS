@@ -39,6 +39,11 @@ void process_manager_init();
 
 void create_process();
 
-void close_process(uint32_t pid);
+/**
+ * Destroy process 'pcb' and release its private resources. If 'pcb' is in block state, it will do nothing and return 1.
+ * @param pcb
+ * @return If 'pcb' in block state, it will do nothing and return 1. Otherwise return 0.
+ */
+uint8_t close_process(process_control_block_t *pcb);
 
 #endif //XYOS_PROCESS_H
