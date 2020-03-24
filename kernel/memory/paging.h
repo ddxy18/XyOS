@@ -85,4 +85,11 @@ typedef struct CR3 {
 
 void k_paging_init();
 
+/**
+ * Creating a new process will use this function to set its page directory.
+ * Caller should request memory for page directory itself.
+ * @param page_directory
+ */
+void u_page_directory_init(page_directory_entry_t *page_directory);
+
 #endif //XYOS_PAGING_H

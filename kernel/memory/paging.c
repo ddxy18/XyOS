@@ -97,3 +97,20 @@ void set_page_table_entry(page_table_entry_t *entry, uint8_t access, uint32_t ad
     entry->ignored = 0x0u;
     entry->page_addr = address;
 }
+
+void u_page_directory_init(page_directory_entry_t *page_directory) {
+    uint32_t i = 0;
+    // set user space
+    for (; i < U_PDE_NUM; ++i) {
+        page_directory[i].ignored = 0x0u;
+        page_directory[i].access = U_PDE_WRITE_ABSENT_ACCESS;
+        page_directory[i].page_table_addr = PTE_ABSENT_ADDR;
+    }
+    // copy kernel space's page directory entry
+    for (; i < PDE_NUM; ++i) {
+        page_directory_entry_t *k_page_directory = K_PAGE_DIRECTORY_PHYSICAL_ADDR;
+        page_directory[i].ignored = k_page_directory[i].ignored;
+        page_directory[i].access = k_page_directory[i].access;
+        page_directory[i].page_table_addr = k_page_directory[i].page_table_addr;
+    }
+}
