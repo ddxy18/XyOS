@@ -3,86 +3,94 @@
 //
 
 /**
- * It's a physical page allocator which manages all physical pages allocation and release.
- * It contains all kernel available physical pages and will ensure that no reserved physical memory is modified.
- * Its smallest allocation and release size is a page and all memory requests are dealt with this allocator.
- * It starts working almost immediately after the bootloader completes its work,
- * so some kernel's global data structure, such as GDT(global descriptor table) and PD( kernel'spage directory),
- * will use this allocator to get memory.
- * All memory references in this allocator are physical memory,
- * so the translation of virtual address and modification of page table should be completed by requester themselves.
+ * Page allocator is a physical page allocator which manages all available
+ * physical pages' allocation and release. It's a public basic memory allocator
+ * and all other memory managers will use it to complete their function.
+ *
+ * In 'start.c', 'available_mem' will be initialized, so we will get all
+ * available memory's physical address and size. We will use 'page_state' to
+ * record whether physical page n is allocated.
+ *
+ * It provides two allocate policy: 'request_page()' will allocate a page and
+ * its physical address is random, 'k_request_page(uint32_t)' is for kernel
+ * direct mapping memory and will allocate pages in given address. User space
+ * and kernel dynamic mapping area will request memory from the allocator
+ * through page faults and kernel direct mapping area will request all memory
+ * firstly and manage it itself. Moreover, bootloader will open segment and make
+ * logical address equal linear address and physical address. So all memory
+ * addresses in this allocator are physical addresses. Translation to
+ * virtual address and modification of page tables should be completed by
+ * requester themselves.
  */
 #ifndef XYOS_PAGE_ALLOCATOR_H
 #define XYOS_PAGE_ALLOCATOR_H
 
 #include <stdint.h>
 
+#include "../lib/def.h"
+
+// now only support 4 KB pages
 #define PAGE_SIZE 0x1000u
+// 4 GB memory addresses contain 2^20 4 KB pages
 #define VIRTUAL_PAGE_NUM 0x100000u
-// minimum physical page number after kernel's 512 MB direct map area
-#define DYNAMIC_MAP_START 0x20000u
-// kernel's continuous memory maximum: 128 MB
-#define K_MAX_CONTINUOUS_PAGE_NUM 0x8000u
-
-// 'byte_size' must be a multiple of 'PAGE_SIZE'
-#define byte_to_page(byte_size) byte_size / PAGE_SIZE
-
-#define page_physical_address(n) n * PAGE_SIZE
-#define page_number(physical_addr) physical_addr / PAGE_SIZE
+// first physical page after kernel's 64 MB direct mapping area
+#define DYNAMIC_MAPPING_START_PAGE 0x4000u
+// restrict a maximum of 64 MB continuous physical memory in kernel dynamic
+// area
+#define K_MAX_CONTINUOUS_PAGE_NUM 0x4000u
 
 /**
- * use a bit map to indicate whether physical page n is allocated
- * 0 indicates free and 1 indicates allocated
+ * translate memory sizes represented in bytes to 4 KB page amounts
+ * 'byte_size' must be a multiple of 'PAGE_SIZE'
  */
-uint64_t page_state[0x4000u];
-
-typedef struct available_physical_mem {
-    uint32_t addr;
-    uint32_t size;
-    struct available_physical_mem *next;
-} available_physical_mem_t;
+#define byte_to_page(byte_size) (byte_size / PAGE_SIZE)
+// calculate page n's physical address
+#define page_phys_addr(n) (n * PAGE_SIZE)
+// calculate which page 'physical_addr' locates in
+#define page_no(phys_addr) (phys_addr / PAGE_SIZE)
 
 /**
- * Store available memory information provided by the bootloader.
- * It is used to detect whether the physical page is valid to allocate.
+ * @brief It will set 'page_state' according to 'available_mem'. If any bytes in
+ * a page is unavailable, this page will be viewed as an unavailable page. All
+ * unavailable pages' bits will be set to 1 and others set to 0.
+ *
+ * @return uint8_t Return 0 in normal. Return 1 if no available memory exists.
  */
-available_physical_mem_t *available_mem;
+uint8_t page_allocator_init();
 
 /**
- * set all unavailable pages and clear all available pages
+ * @brief It will search 'page_state' from 'DYNAMIC_MAPPING_START_PAGE' in
+ * sequence until find the first free page and then return the page's physical
+ * address.
+ *
+ * @return pointer_t physical address of the allocated page. If a failure
+ * happens, return 0. Notice that it will not search reserved area for kernel
+ * direct mapping, so the situation that choose page 0 as a free page will never
+ * happen.
  */
-void page_allocator_init();
+pointer_t request_page();
 
 /**
- * allocate an available physical page except those for kernel's direct mapping area
- * @return physical address of the allocated area, if a failure happens, return 0
- */
-uint32_t request_page();
-
-/**
- * This function is only for special kernel requests which need to store some global data in fixed physical address,
- * thus it is mostly called in kernel's initialization and only allowed in direct map area.
- * @param n it should be less than 'DYNAMIC_MAP_START'
- * @return physical address of the allocated area, if a failure(request allocated page or reserved page) happens, return -1
- */
-int32_t k_request_page(uint32_t n);
-
-/**
- * request continuous 'amount' pages from page 'n'
+ * @brief This function is only used for allocate kernel direct mapping area.
+ * Direct mapping allocator will request continuous 'amount' pages starting from
+ * page 'n' at first time and manage it itself.
+ *
  * @param n the first requested page number
- * @param amount requested page amounts
- *               Its maximum is MAX_CONTINUOUS_PAGE_NUM, say, kernel can only request continuous memory less than 128 MB.
- * @return Return nth page's physical address of the allocated area in successful allocation.
- *         If any failure happens when requesting any of the 'amount' pages, return -1.
+ * @param amount requested page amounts. Its maximum is MAX_CONTINUOUS_PAGE_NUM,
+ * say, kernel can only request continuous memory less than 64 MB.
+ *
+ * @return pointer_t Return nth page's physical address of the allocated area in
+ * successful allocation. If any failure happens when requesting any of the
+ * 'amount' pages, return -1.
  */
-int32_t k_request_pages(uint32_t n,uint16_t amount);
+pointer_t k_request_pages(uint32_t n, uint16_t amount);
 
 /**
- * set page n to free state and clear all bytes to 0
- * If nth page is not available memory, this function will do nothing.
+ * @brief Set page 'n' to free state and clear all bytes to 0.
+ * If page 'n' is not available or in free state, this function will do nothing.
+ *
  * @param n nth physical page
  */
 void release_page(uint32_t n);
 
-
-#endif //XYOS_PAGE_ALLOCATOR_H
+#endif // XYOS_PAGE_ALLOCATOR_H
