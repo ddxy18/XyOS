@@ -70,8 +70,8 @@
 #define MULTIBOOT_INFO_VBE_INFO 0x00000800
 #define MULTIBOOT_INFO_FRAMEBUFFER_INFO 0x00001000
 
-#ifndef ASM
-#define ASM
+#ifndef BOOT
+#define BOOT
 
 typedef unsigned char multiboot_uint8_t;
 typedef unsigned short multiboot_uint16_t;
@@ -215,5 +215,5 @@ struct multiboot_apm_info {
   multiboot_uint16_t cseg_16_len;
   multiboot_uint16_t dseg_len;
 };
-#endif // ! ASM
+#endif // ! BOOT
 #endif // ! MULTIBOOT HEADER
