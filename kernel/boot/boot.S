@@ -5,6 +5,7 @@
  * and must be 64-bit aligned.
  */
  
+#define ASM
 #include "multiboot.h"
     .text
     .align 4
