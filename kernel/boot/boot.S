@@ -4,15 +4,15 @@
  * The Multiboot2 header must be contained completely within the first 32768 bytes of the OS image,
  * and must be 64-bit aligned.
  */
-
-#define ASM_FILE 1
+ 
 #include "multiboot.h"
     .text
     .align 4
     .extern _kernel_start
     .globl _start
 #define MULTIBOOT_HEADER_FLAGS MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO
-#define INIT_STACK_SIZE 0x4000
+    .section .multiboot
+    .align 4
 multiboot_header:
     /**
      * magic
@@ -45,7 +45,8 @@ multiboot_header_end:
 _start:
     /* initialize the stack pointer */
     movl init_stack, %esp
-    addl INIT_STACK_SIZE, %esp
+    # set stack size to 16 KB
+    addl $0x4000, %esp
     /* reset EFLAGS */
     pushl $0
     popf

@@ -6,6 +6,10 @@ ENTRY(_start)
 SECTIONS
 {
   . = 0x100000;
+  .multiboot : {
+    PROVIDE(_K_BEGIN = .);
+    *(.multiboot)
+  }
   .text : {
     *(.text)
   }
@@ -15,4 +19,5 @@ SECTIONS
   .bss : {
     *(.bss)
   }
+  PROVIDE(_K_END = .);
 }

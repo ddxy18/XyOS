@@ -6,6 +6,6 @@
 #define XYOS_HARDWARE_H
 
 // all represented in KB
-#define MIN_LOWER_MEMORY 600u
-#define MIN_UPPER_MEMORY 65536u
-#endif //XYOS_HARDWARE_H
+#define MIN_LOWER_MEM 600u
+#define MIN_UPPER_MEM 65536u
+#endif // XYOS_HARDWARE_H
