@@ -4,3 +4,4 @@
 /.vscode/
 CMakeLists.txt
 XyOS_workspace.code-workspace
+/kernel/interrupt/apic/
