@@ -6,27 +6,19 @@
 #define XYOS_BITMAP_H
 
 #include <stdint.h>
+#include "def.h"
 
-void set_bit(uint64_t bitmap[], uint32_t i) {
-    uint32_t arr_i = i / 64;
-    // find the bit location in bitmap[arr_i]
-    i %= 64;
-    bitmap[arr_i] |= (1lu << i);
-}
+void bitmap_set(uint64_t *bitmap, uint32_t i);
 
-void clear_bit(uint64_t bitmap[], uint32_t i) {
-    uint32_t arr_i = i / 64;
-    // find the bit location in bitmap[arr_i]
-    i %= 64;
-    bitmap[arr_i] &= (!(1lu << i));
-}
+void bitmap_clear(uint64_t *bitmap, uint32_t i);
 
-// If bit i is set, return 1.Otherwise return 0.
-uint8_t is_bit_set(uint64_t bitmap[], uint32_t i) {
-    uint32_t arr_i = i / 64;
-    // find the bit location in bitmap[arr_i]
-    i %= 64;
-    return (bitmap[arr_i] & (1lu << i)) != 0;
-}
+/**
+ * @brief Determine whether bit 'i' is set.
+ *
+ * @param bitmap
+ * @param i
+ * @return bool
+ */
+bool is_bitmap_set(uint64_t *bitmap, uint32_t i);
 
-#endif //XYOS_BITMAP_H
+#endif // XYOS_BITMAP_H

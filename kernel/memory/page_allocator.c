@@ -32,13 +32,13 @@ uint8_t page_allocator_init() {
   while (t->size != UINT32_MAX) {
     // set all pages between two available memory slices as unavailable pages
     while (addr < t->addr) {
-      set_bit(page_state, page_no(addr));
-      addr += PAGE_SIZE;
+        bitmap_set(page_state, page_no(addr));
+        addr += PAGE_SIZE;
     }
     // set all pages completely in an available memory slice as available pages
     while (addr + PAGE_SIZE <= t->addr + t->size) {
-      clear_bit(page_state, page_no(addr));
-      addr += PAGE_SIZE;
+        bitmap_clear(page_state, page_no(addr));
+        addr += PAGE_SIZE;
     }
     t++;
   }
@@ -48,14 +48,14 @@ uint8_t page_allocator_init() {
   // After checking the last page, 'addr += PAGE_SIZE' will overflow to 0, so we
   // will use 0 as a sign of the end.
   while (page_no(addr) != 0) {
-    clear_bit(page_state, page_no(addr));
-    addr += PAGE_SIZE;
+      bitmap_clear(page_state, page_no(addr));
+      addr += PAGE_SIZE;
   }
 
   // set first 64 MB as available, so we can allocate them to direct mapping
   // allocator to manage them.
   for (uint32_t i = 0; i < DYNAMIC_MAPPING_START_PAGE; i++) {
-    clear_bit(page_state, i);
+      bitmap_clear(page_state, i);
   }
 
   return 0;
@@ -63,8 +63,8 @@ uint8_t page_allocator_init() {
 
 uintptr_t request_page() {
     for (uint32_t i = DYNAMIC_MAPPING_START_PAGE; i < VIRTUAL_PAGE_NUM; ++i) {
-        if (!is_bit_set(page_state, i)) {
-            set_bit(page_state, i);
+        if (!is_bitmap_set(page_state, i)) {
+            bitmap_set(page_state, i);
             return page_phys_addr(i);
         }
     }
@@ -86,11 +86,11 @@ uintptr_t k_request_page(uint32_t n) {
     }
     // check if requested page has already been allocated or is reserved to
     // prevent dangerous overwriting
-    if (is_bit_set(page_state, n) == 0) {
-        set_bit(page_state, n);
+    if (is_bitmap_set(page_state, n) == 0) {
+        bitmap_set(page_state, n);
         return page_phys_addr(n);
     }
-  return -1;
+    return -1;
 }
 
 uintptr_t k_request_pages(uint32_t n, uint16_t amount) {
@@ -117,9 +117,9 @@ void release_page(uint32_t n) {
     avl_phys_mem_t *t = get_avl_mem();
   while (t->size != -1) {
     if (t->addr < addr && t->addr + t->size >= addr + PAGE_SIZE) {
-      clear_page(n);
-      clear_bit(page_state, n);
-      t = NULL;
+        clear_page(n);
+        bitmap_clear(page_state, n);
+        t = NULL;
       return;
     }
     t++;
