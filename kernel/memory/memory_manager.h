@@ -10,8 +10,8 @@
 #define AVL_MEM_ADDR 0x20000U
 
 typedef struct avl_phys_mem {
-  pointer_t addr;
-  uint32_t size;
+  uintptr_t addr;
+    uint32_t size;
 } avl_phys_mem_t;
 
 /**

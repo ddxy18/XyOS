@@ -55,10 +55,10 @@ void direct_mapping_init();
  * not a power of 2, it will choose the next number which is power of 2 as
  * 'size'.
  * @param size request 'size' bytes continuous memory
- * @return pointer_t Return virtual address of the allocated area. If a failure
+ * @return uintptr_t Return virtual address of the allocated area. If a failure
  * happens, return 0.
  */
-pointer_t request_bytes(uint32_t size);
+uintptr_t request_bytes(uint32_t size);
 
 /**
  * @brief It will search through 'allocated_mem_list' to find size of memory
@@ -67,7 +67,7 @@ pointer_t request_bytes(uint32_t size);
  *
  * @param addr the smallest virtual address of the released area
  */
-void release_bytes(pointer_t addr);
+void release_bytes(uintptr_t addr);
 
 // '&K_BEGIN' and '&K_END' are kernel image's begin and end addresses. Notice
 // that the two addresses are all physical addresses.

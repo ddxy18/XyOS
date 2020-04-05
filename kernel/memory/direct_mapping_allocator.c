@@ -5,13 +5,11 @@
 #include "direct_mapping_allocator.h"
 #include "../driver/console.h"
 #include "../lib/list.h"
-#include "../test/test.h"
 #include "page_allocator.h"
-#include "paging.h"
 #include "segment.h"
 #include <stddef.h>
 
-void node_pool_init(pointer_t, uint32_t);
+void node_pool_init(uintptr_t, uint32_t);
 
 linked_list_node_t *request_node();
 
@@ -76,7 +74,7 @@ void direct_mapping_init() {
     }
 }
 
-pointer_t request_bytes(uint32_t size) {
+uintptr_t request_bytes(uint32_t size) {
     uint16_t size_type = get_size_type(size);
 
     linked_list_node_t *free_slice = free_mem_list[size_type].head;
@@ -104,7 +102,7 @@ pointer_t request_bytes(uint32_t size) {
     return free_slice->data;
 }
 
-void release_bytes(pointer_t addr) {
+void release_bytes(uintptr_t addr) {
     // get allocated area's size according to 'physical_addr' and remove the node
     // from 'allocated_mem_list'
     linked_list_node_t *remove_node;
@@ -154,12 +152,12 @@ void release_bytes(pointer_t addr) {
  * @param begin_virtual_addr should be aligned to 4 KB
  * @param size should be multiple of 4 KB
  */
-void node_pool_init(pointer_t begin_addr, uint32_t size) {
+void node_pool_init(uintptr_t begin_addr, uint32_t size) {
     uint8_t node_size = sizeof(linked_list_node_t);
     node_pool = (linked_list_node_t *) begin_addr;
 
     linked_list_node_t *tmp = node_pool;
-    for (pointer_t i = (pointer_t) (node_pool + 1); i < (uint32_t) node_pool + size;
+    for (uintptr_t i = (uintptr_t) (node_pool + 1); i < (uint32_t) node_pool + size;
          i += node_size) {
         tmp->next = (linked_list_node_t *) i;
         tmp->next->data = 0;

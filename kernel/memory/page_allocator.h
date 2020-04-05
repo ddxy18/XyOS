@@ -63,12 +63,12 @@ uint8_t page_allocator_init();
  * sequence until find the first free page and then return the page's physical
  * address.
  *
- * @return pointer_t physical address of the allocated page. If a failure
+ * @return uintptr_t physical address of the allocated page. If a failure
  * happens, return 0. Notice that it will not search reserved area for kernel
  * direct mapping, so the situation that choose page 0 as a free page will never
  * happen.
  */
-pointer_t request_page();
+uintptr_t request_page();
 
 /**
  * @brief This function is only used for allocate kernel direct mapping area.
@@ -79,11 +79,11 @@ pointer_t request_page();
  * @param amount requested page amounts. Its maximum is MAX_CONTINUOUS_PAGE_NUM,
  * say, kernel can only request continuous memory less than 64 MB.
  *
- * @return pointer_t Return nth page's physical address of the allocated area in
+ * @return uintptr_t Return nth page's physical address of the allocated area in
  * successful allocation. If any failure happens when requesting any of the
  * 'amount' pages, return -1.
  */
-pointer_t k_request_pages(uint32_t n, uint16_t amount);
+uintptr_t k_request_pages(uint32_t n, uint16_t amount);
 
 /**
  * @brief Set page 'n' to free state and clear all bytes to 0.

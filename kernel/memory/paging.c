@@ -10,8 +10,6 @@
  */
 
 #include "paging.h"
-#include "../driver/console.h"
-#include "direct_mapping_allocator.h"
 #include "page_allocator.h"
 
 CR3_t cr3;
@@ -25,7 +23,7 @@ void k_paging_init() {
 
   page_dir_entry_t *k_page_dir = (page_dir_entry_t *)(cr3.page_dir_addr << 12u);
 
-  pointer_t pt_addr = K_PAGE_TABLE_ADDR;
+  uintptr_t pt_addr = K_PAGE_TABLE_ADDR;
   // Map first 4 MB memory to the same physical address. So when opening paging,
   // current address can also be used.
   k_page_dir[0].access = K_PDE_WRITE_PRESENT_ACCESS;
@@ -46,7 +44,7 @@ void k_paging_init() {
     k_page_dir[i].page_table_addr = PDE_ABSENT_ADDR;
   }
   // initialize direct mapping area
-  pointer_t page_addr = 0x0u;
+    uintptr_t page_addr = 0x0u;
   for (; i < K_PDE_DIRECT_MAP_NUM + U_PDE_NUM; ++i) {
     k_page_dir[i].access = K_PDE_WRITE_PRESENT_ACCESS;
     k_page_dir[i].ignored = 0x0u;

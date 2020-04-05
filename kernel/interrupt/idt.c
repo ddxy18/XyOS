@@ -3,14 +3,13 @@
 //
 
 #include "idt.h"
-#include "../memory/direct_mapping_allocator.h"
 #include "../memory/segment.h"
 
 void set_idt_entry(uint16_t, uint16_t, uint16_t);
 
 uint64_t *idt;
 IDTR_t idtr;
-extern pointer_t intr_vec[];
+extern uintptr_t intr_vec[];
 
 void idt_init() {
     idtr.limit = IDT_LIMIT;
