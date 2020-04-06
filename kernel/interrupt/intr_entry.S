@@ -3,7 +3,7 @@
 .text
 .globl _alltraps
 _alltraps:
-    # push eflags
+    # push general purpose registers
     pushal
     # push segment registers
     movw %gs, %ax
