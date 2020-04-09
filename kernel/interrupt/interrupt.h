@@ -12,6 +12,7 @@
 #define PF_VEC 14u
 #define TIMER_VEC 32u
 #define KEYBOARD_VEC 33u
+#define IDE_VEC 46u
 
 void intr_init();
 

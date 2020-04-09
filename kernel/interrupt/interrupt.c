@@ -8,6 +8,7 @@
 #include "pic.h"
 #include "../lib/bitmap.h"
 #include "../driver/console.h"
+#include "../memory/paging.h"
 
 void exc_handler(intr_reg_t *);
 
@@ -28,13 +29,16 @@ void intr_init() {
     for (uint32_t i = 0; i < IDT_EXC_NUM; ++i) {
         reg_intr_handler(i, exc_handler);
     }
+    // set page fault handler
+    remove_intr_handler(PF_VEC);
+    reg_intr_handler(PF_VEC, pf_handler);
 }
 
 bool reg_intr_handler(uint16_t intr_vec_no, void (*handler)(intr_reg_t *)) {
-    if (is_bit_set(intr_vec_map, intr_vec_no) == TRUE) {
+    if (is_bitmap_set(intr_vec_map, intr_vec_no) == TRUE) {
         return FALSE;
     }
-    set_bit(intr_vec_map, intr_vec_no);
+    bitmap_set(intr_vec_map, intr_vec_no);
     intr_handler[intr_vec_no] = handler;
     enable_idt(intr_vec_no);
     return TRUE;
@@ -43,7 +47,7 @@ bool reg_intr_handler(uint16_t intr_vec_no, void (*handler)(intr_reg_t *)) {
 void remove_intr_handler(uint16_t intr_vec_no) {
     disable_idt(intr_vec_no);
     intr_handler[intr_vec_no] = NULL;
-    clear_bit(intr_vec_map, intr_vec_no);
+    bitmap_clear(intr_vec_map, intr_vec_no);
 }
 
 void exc_handler(intr_reg_t *intr_reg) {
