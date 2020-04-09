@@ -22,9 +22,9 @@
  * @def ICW1
  * @verbatim
  * format: 0001c0ba
- * g  0 = edge triggering, 1 = level triggering
- * h  0 = cascaded PICs, 1 = master only
- * i  0 = no ICW4, 1 = ICW4 required
+ * c  0 = edge triggering, 1 = level triggering
+ * b  0 = cascaded PICs, 1 = master only
+ * a  0 = no ICW4, 1 = ICW4 required
  * @endverbatim
  */
 #define ICW1 0x11u

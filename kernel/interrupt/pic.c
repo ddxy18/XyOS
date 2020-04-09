@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include "pic.h"
-#include "../lib/io.h"
+#include "../lib/asm_wrapper.h"
 
 void pic_init() {
     // set up master
@@ -21,6 +21,9 @@ void pic_init() {
     // Linux source code says it's "to be investigated".
     outb(S_PIC_DATA, ICW4);
 
+    // use non-specific EOI by setting OCW2
+    outb(M_PIC_CMD, 0x20u);
+    outb(S_PIC_CMD, 0x20u);
     // OCW3:  0ef01prs
     //   ef:  0x = NOP, 10 = clear specific mask, 11 = set specific mask
     //    p:  0 = no polling, 1 = polling mode
@@ -31,8 +34,8 @@ void pic_init() {
     outb(S_PIC_CMD, 0x48u); // OCW3
     outb(S_PIC_CMD, 0x0au); // OCW3
 
-    // mask all interrupts
-    outb(M_PIC_DATA, 0xffu);
+    // mask all interrupts except IRQ2, so slave PIC will not be disabled
+    outb(M_PIC_DATA, 0xfbu);
     outb(S_PIC_DATA, 0xffu);
 }
 
