@@ -5,20 +5,41 @@
 #ifndef XYOS_BITMAP_H
 #define XYOS_BITMAP_H
 
-#include <stdint.h>
 #include "def.h"
 
-void bitmap_set(uint64_t *bitmap, uint32_t i);
-
-void bitmap_clear(uint64_t *bitmap, uint32_t i);
-
 /**
- * @brief Determine whether bit 'i' is set.
+ * Initialize all bit to 'state'.
  *
  * @param bitmap
- * @param i
- * @return bool
+ * @param arr_size
+ * @param state
  */
-bool is_bitmap_set(uint64_t *bitmap, uint32_t i);
+static inline void bitmap_init(unsigned int *bitmap, int arr_size, bool state) {
+    for (int i = 0; i < arr_size; ++i) {
+        bitmap[i] = 0;
+        if (state == TRUE) {
+            bitmap[i] = ~bitmap[i];
+        }
+    }
+}
+
+static inline void bitmap_set(unsigned int *bitmap, unsigned int i) {
+    uint32_t arr_i = i / sizeof(unsigned int);
+    // find the bit location in bitmap[arr_i]
+    i %= sizeof(unsigned int);
+    bitmap[arr_i] |= (1llu << i);
+}
+
+static inline void bitmap_clear(unsigned int *bitmap, unsigned int i) {
+    uint32_t arr_i = i / sizeof(unsigned int);
+    i %= sizeof(unsigned int);
+    bitmap[arr_i] &= (~(1llu << i));
+}
+
+static inline bool is_bitmap_set(const unsigned int *bitmap, unsigned int i) {
+    uint32_t arr_i = i / sizeof(unsigned int);
+    i %= sizeof(unsigned int);
+    return (bitmap[arr_i] & (1llu << i)) != 0;
+}
 
 #endif // XYOS_BITMAP_H

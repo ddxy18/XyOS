@@ -2,53 +2,59 @@
 // Created by dxy on 2020/3/23.
 //
 
+/**
+ * This is a list like the one heavily used in Linux kernel. It uses member 'list_node_t' in a struct to create a rounded linked list.
+ * When we use the list, we must reserve a 'list_node_t' as a head and never do 'list_remove' to the head.
+ * Firstly we have to call 'list_init(list_node_t *)' to initialize the list.
+ * And we can use 'list_add(list_node_t *, list_node_t *)' to add new node.
+ * Before we call 'list_remove(list_node_t *)' to remove a node, we must use 'is_list_empty(list_node_t *)' to determine whether there is any valid node.
+ * Once we get the node we can use 'get_struct' to get the corresponding structure.
+ */
+
 #ifndef XYOS_LIST_H
 #define XYOS_LIST_H
 
-#include <stdint.h>
-#include "def.h"
-
-typedef struct linked_list_node {
-    pointer_t data;
-    struct linked_list_node *next;
-} linked_list_node_t;
-
-typedef struct linked_list {
-    linked_list_node_t *head;
-} linked_list_t;
-
-void insert_to_head(linked_list_t list, linked_list_node_t *new_node) {
-    linked_list_node_t *tmp = list.head;
-    new_node->next = tmp->next;
-    tmp->next = new_node;
-}
-
-linked_list_node_t *get(linked_list_t list, pointer_t data) {
-    linked_list_node_t *tmp = list.head;
-    while (tmp->next != NULL) {
-        if (tmp->next->data == data) {
-            return tmp->next;
-        }
-    }
-    return NULL;
-}
+#include <stddef.h>
 
 /**
- * Remove 'remove_node' from 'list' and set 'remove_node.next' to 'NULL'. If 'remove_node' doesn't exist, return 'NULL'.
- * @param list
- * @param remove_node
- * @return Return 'remove_node' whose field 'next' is set to 'NULL'. If 'remove_node' doesn't exist, return 'NULL'.
+ * Get struct address from its member address.
+ *
+ * @param ptr address of the member
+ * @param type struct name
+ * @param member member name in struct
  */
-linked_list_node_t *remove(linked_list_t list, linked_list_node_t *remove_node) {
-    linked_list_node_t *tmp = list.head;
-    while (tmp->next != NULL) {
-        if (tmp->next == remove_node) {
-            tmp->next = remove_node->next;
-            remove_node->next = NULL;
-            return remove_node;
-        }
-    }
-    return NULL;
+#define get_struct(ptr, type, member) ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+
+typedef struct list_node {
+    struct list_node *prev, *next;
+} list_node_t;
+
+static inline list_node_t *list_init(list_node_t *head) {
+    head->prev = head;
+    head->next = head;
 }
 
-#endif //XYOS_LIST_H
+static inline void list_add(list_node_t *prev, list_node_t *new_node) {
+    list_node_t *next = prev->next;
+    prev->next = new_node;
+    new_node->prev = prev;
+    new_node->next = next;
+    next->prev = new_node;
+}
+
+static inline list_node_t *list_remove(list_node_t *node) {
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+    node->prev = NULL;
+    node->next = NULL;
+    return node;
+}
+
+static inline bool is_list_empty(list_node_t *head) {
+    if (head->next == head) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+#endif // XYOS_LIST_H
