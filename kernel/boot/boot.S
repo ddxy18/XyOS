@@ -1,7 +1,7 @@
-# The Multiboot header must be contained completely within the first 8192 bytes of the OS image,
-# and must be longword (32-bit) aligned.
-# The Multiboot2 header must be contained completely within the first 32768 bytes of the OS image,
-# and must be 64-bit aligned.
+# The Multiboot header must be contained completely within the first 8192 bytes
+# of the OS image and must be longword (32-bit) aligned.
+# The Multiboot2 header must be contained completely within the first 32768
+# bytes of the OS image and must be 64-bit aligned.
  
 #define XYOS_BOOT_H
 #include "multiboot.h"
@@ -25,8 +25,8 @@ multiboot_header_end:
 _start:
     # initialize the stack pointer
     movl init_stack, %esp
-    # set stack size to 16 KB
-    addl $0x4000, %esp
+    # set stack size to 16 KB, reserve stack botttom for 'KThread *'
+    addl $0x3ffc, %esp
     # reset EFLAGS
     pushl $0
     popf
