@@ -14,7 +14,7 @@
  * @param arr_size
  * @param state
  */
-static inline void bitmap_init(unsigned int *bitmap, int arr_size, bool state) {
+static inline void Bitmap(unsigned int *bitmap, int arr_size, bool state) {
     for (int i = 0; i < arr_size; ++i) {
         bitmap[i] = 0;
         if (state == TRUE) {
@@ -23,21 +23,21 @@ static inline void bitmap_init(unsigned int *bitmap, int arr_size, bool state) {
     }
 }
 
-static inline void bitmap_set(unsigned int *bitmap, unsigned int i) {
-    uint32_t arr_i = i / sizeof(unsigned int);
+static inline void SetBitmap(unsigned int *bitmap, int i) {
+    uint32_t arr_i = i / (sizeof(unsigned int) * 8);
     // find the bit location in bitmap[arr_i]
     i %= sizeof(unsigned int);
     bitmap[arr_i] |= (1llu << i);
 }
 
-static inline void bitmap_clear(unsigned int *bitmap, unsigned int i) {
-    uint32_t arr_i = i / sizeof(unsigned int);
+static inline void ClearBitmap(unsigned int *bitmap, int i) {
+    uint32_t arr_i = i / (sizeof(unsigned int) * 8);
     i %= sizeof(unsigned int);
     bitmap[arr_i] &= (~(1llu << i));
 }
 
-static inline bool is_bitmap_set(const unsigned int *bitmap, unsigned int i) {
-    uint32_t arr_i = i / sizeof(unsigned int);
+static inline bool IsBitmapSet(const unsigned int *bitmap, int i) {
+    uint32_t arr_i = i / (sizeof(unsigned int) * 8);
     i %= sizeof(unsigned int);
     return (bitmap[arr_i] & (1llu << i)) != 0;
 }

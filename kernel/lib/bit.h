@@ -7,16 +7,16 @@
 
 #include "def.h"
 
-static inline bool is_bit_set(uint32_t data, uint8_t i) {
-    return (data & (1u << i)) != 0;
+static inline bool IsBitSet(int data, int i) {
+    return ((unsigned) data & (1u << (unsigned) i)) != 0;
 }
 
-static inline void set_bit(uint32_t *data, uint8_t i) {
-    *data |= (1u << i);
+static inline void SetBit(int *data, int i) {
+    *data = (int) ((unsigned) *data | (1u << (unsigned) i));
 }
 
-static inline void clear_bit(uint32_t *data, uint8_t i) {
-    *data &= ~(1u << i);
+static inline void ClearBit(int *data, int i) {
+    *data = (int) ((unsigned) *data & (~(1u << (unsigned) i)));
 }
 
 #endif //XYOS_BIT_H
