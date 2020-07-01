@@ -2,192 +2,221 @@
 // Created by dxy on 2020/4/8.
 //
 
+/**
+ * We allocate a thread to handle IDE tasks. This thread will execute 
+ * 'RunIde' since it's created and never return. It will sleep after
+ * sending a request to the drive and be waken when drive sends back an 
+ * interrupt. Now we use a Queue to store all requests and write or read a 
+ * sector in its turn to executing. Requests will Queue in a sequence 
+ * according to the time they come.
+ */
+
 #include "ide.h"
+
 #include "../lib/asm_wrapper.h"
 #include "../lib/queue.h"
 #include "../interrupt/pic.h"
-#include "../memory/direct_mapping_allocator.h"
 #include "../interrupt/interrupt.h"
+#include "../thread/thread.h"
 
 // register IO address
-#define IO_BASE 0x1f0
-#define CTRL_BASE 0x3f6
-#define DATA_REG (IO_BASE + 0)
-#define ERR_REG (IO_BASE + 1)
-#define FEATURE_REG (IO_BASE + 1)
-#define SEC_COUNT_REG (IO_BASE + 2)
-#define SEC_NO_REG (IO_BASE + 3)
-#define CYLINDER_LOW_REG (IO_BASE + 4)
-#define CYLINDER_HIGH_REG (IO_BASE + 5)
-#define DRIVE_HEAD_SEL_REG (IO_BASE + 6)
-#define STATUS_REG (IO_BASE + 7)
-#define CMD_REG (IO_BASE + 7)
-#define ALTERNATE_STATUS_REG (CTRL_BASE + 0)
-#define DEVICE_CTRL_REG (CTRL_BASE + 0)
-#define DRIVE_ADDR_REG (CTRL_BASE + 1)
+static const int kIoBase = 0x1f0;
+static const int kCtrlBase = 0x3f6;
+static const int kDataReg = kIoBase + 0;
+static const int kErrReg = kIoBase + 1;
+static const int kFeatureReg = kIoBase + 1;
+static const int kSecCountReg = kIoBase + 2;
+static const int kSecNoReg = kIoBase + 3;
+static const int kCylinderLowReg = kIoBase + 4;
+static const int kCylinderHighReg = kIoBase + 5;
+static const int kDriveHeadSelReg = kIoBase + 6;
+static const int kStatusReg = kIoBase + 7;
+static const int kCmdReg = kIoBase + 7;
+static const int kAlternateStatusReg = kCtrlBase + 0;
+static const int kDeviceCtrlReg = kCtrlBase + 0;
+static const int kDriveAddrReg = kCtrlBase + 1;
 
 // status register bit
-#define IDE_BSY 0x80u
-#define IDE_ERR 0x1u
-#define IDE_DF 0x20u
-#define IDE_RDY 0x40u
-#define IDE_DRQ 0x08u
+static const int kIdeBsy = 0x80;
+static const int kIdeErr = 0x1;
+static const int kIdeDf = 0x20;
+static const int kIdeRdy = 0x40;
+static const int kIdeDrq = 0x08;
 
 // command
-#define IDENTITY 0xec
-#define READ 0x20
-#define WRITE 0x30
+static const int kIdentity = 0xec;
+static const int kRead = 0x20;
+static const int kWrite = 0x30;
 
-typedef struct ide_sec {
+typedef struct IdeBlock {
     uint8_t dev_no;
     uint32_t sec_addr;
     uintptr_t mem_addr;
     // write if 'TRUE' and read if 'FALSE'
     bool op;
-} ide_sec_t;
+    unsigned int sec_num;
+    ListNode node;
+    Thread *req_thread;
+} IdeBlock;
 
-static int ide_wait(bool);
+static Queue *block_queue;
 
-static void ide_handler(intr_reg_t *);
+/**
+ * Start transfer between disk and memory.
+ */
+_Noreturn static void RunIde();
 
-static k_queue_t *sec_queue;
+static int IdeWait(bool check_err);
 
-static inline void disable_intr() {
-    outb(DEVICE_CTRL_REG, 2);
+static void IdeHandler(IntrReg *intr_reg);
+
+static inline void DisableIntr() {
+    outb(kDeviceCtrlReg, 2);
 }
 
-static inline void enable_intr() {
-    outb(DEVICE_CTRL_REG, 0);
+static inline void EnableIntr() {
+    outb(kDeviceCtrlReg, 0);
 }
 
-
-bool ide_init() {
-    ide_wait(0);
-    // disable interrupts
-    disable_intr();
+bool IdeInit() {
+    IdeWait(0);
+    // disable ide from sending interrupts
+    DisableIntr();
 
     // detect whether disk 1 is available
-    outb(DRIVE_HEAD_SEL_REG, 0xf0);
-    outb(SEC_COUNT_REG, 0);
-    outb(SEC_NO_REG, 0);
-    outb(CYLINDER_LOW_REG, 0);
-    outb(CYLINDER_HIGH_REG, 0);
-    outb(CMD_REG, IDENTITY);
-    if (inb(CYLINDER_LOW_REG) != 0 || inb(CYLINDER_HIGH_REG) != 0) {
+    outb(kDriveHeadSelReg, 0xf0);
+    outb(kSecCountReg, 0);
+    outb(kSecNoReg, 0);
+    outb(kCylinderLowReg, 0);
+    outb(kCylinderHighReg, 0);
+    outb(kCmdReg, kIdentity);
+    if (inb(kCylinderLowReg) != 0 || inb(kCylinderHighReg) != 0) {
         return FALSE;
     }
-    if (inb(STATUS_REG) == 0 || ide_wait(1) != 0) {
+    if (inb(kStatusReg) == 0 || IdeWait(1) != 0) {
         return FALSE;
     }
 
     unsigned char buffer[512];
-    insl(DATA_REG, buffer, sizeof(buffer) / sizeof(unsigned char));
+    insl(kDataReg, buffer, sizeof(buffer) / WORD_SIZE);
 
-    sec_queue = queue();
+    block_queue = queue();
 
     // enable ide interrupt
-    enable_irq(IDE_VEC);
-    reg_intr_handler(IDE_VEC, ide_handler);
-    enable_intr();
+    EnableIrq(kIdeVec);
+    RegIntrHandler(kIdeVec, IdeHandler);
+    EnableIntr();
+
+    Thread *ide_thread = CreateThread(GetKPcb());
+    KThreadRun(ide_thread, RunIde);
 
     return TRUE;
 }
 
-void r_sec(uint8_t dev_no, uint32_t sec_addr) {
-    ide_wait(0);
-    outb(DEVICE_CTRL_REG, 0);
-    outb(SEC_COUNT_REG, 1);
-    outb(SEC_NO_REG, sec_addr);
-    outb(CYLINDER_LOW_REG, sec_addr >> 8u);
-    outb(CYLINDER_HIGH_REG, sec_addr >> 16u);
-    outb(DRIVE_HEAD_SEL_REG, 0xe0u | ((dev_no & 1u) << 4u) | (sec_addr >> 24u));
-    outb(CMD_REG, READ);
+void RSec(uint8_t dev_no, uint32_t sec_addr) {
+    IdeWait(0);
+    outb(kDeviceCtrlReg, 0);
+    outb(kSecCountReg, 1);
+    outb(kSecNoReg, sec_addr);
+    outb(kCylinderLowReg, sec_addr >> 8u);
+    outb(kCylinderHighReg, sec_addr >> 16u);
+    outb(kDriveHeadSelReg, 0xe0u | ((dev_no & 1u) << 4u) | (sec_addr >> 24u));
+    outb(kCmdReg, kRead);
+    ThreadSleep();
 }
 
-void w_sec(uint8_t dev_no, uint32_t sec_addr, const void *src) {
-    ide_wait(0);
-    outb(DEVICE_CTRL_REG, 0);
-    outb(SEC_COUNT_REG, 1);
-    outb(SEC_NO_REG, sec_addr);
-    outb(CYLINDER_LOW_REG, sec_addr >> 8u);
-    outb(CYLINDER_HIGH_REG, sec_addr >> 16u);
-    outb(DRIVE_HEAD_SEL_REG, 0xe0u | ((dev_no & 1u) << 4u) | (sec_addr >> 24u));
-    outb(CMD_REG, WRITE);
+void WSec(uint8_t dev_no, uint32_t sec_addr, const void *src) {
+    IdeWait(0);
+    outb(kDeviceCtrlReg, 0);
+    outb(kSecCountReg, 1);
+    outb(kSecNoReg, sec_addr);
+    outb(kCylinderLowReg, sec_addr >> 8u);
+    outb(kCylinderHighReg, sec_addr >> 16u);
+    outb(kDriveHeadSelReg,
+         0xe0u | ((dev_no & 1u) << 4u) | (sec_addr >> 24u));
+    outb(kCmdReg, kWrite);
     // write data
-    while ((inb(ALTERNATE_STATUS_REG) & IDE_RDY) == 0);
-    if (ide_wait(1) == 0 && (inb(ALTERNATE_STATUS_REG) & IDE_DRQ) != 0) {
-        outsl(DATA_REG, src, SEC_SIZE / WORD_SIZE);
+    while ((inb(kAlternateStatusReg) & (unsigned) kIdeRdy) == 0);
+    if (IdeWait(1) == 0 &&
+        (inb(kAlternateStatusReg) & (unsigned) kIdeDrq) != 0) {
+        outsl(kDataReg, src, kSecSize / WORD_SIZE);
     }
+    ThreadSleep();
 }
 
-static void ide_handler(__attribute__((unused)) intr_reg_t *intr_reg) {
-    send_eoi(IDE_VEC);
+static void IdeHandler(IntrReg *intr_reg) {
+    SendEoi(intr_reg->intr_vec_no);
 
-    if ((inb(STATUS_REG) & (IDE_ERR | IDE_DF)) != 0) {
+    if ((inb(kStatusReg) & ((unsigned) kIdeErr | (unsigned) kIdeDf)) != 0) {
         // error
         return;
     }
 
-    linked_list_node_t *tmp = dequeue(sec_queue);
-    ide_sec_t *sec = (ide_sec_t *) tmp->data;
-    release_bytes((uintptr_t) tmp);
-    if (sec->op == FALSE) {
+    IdeBlock *block = GET_STRUCT(QueueGetHead(block_queue), IdeBlock,
+                                 node);
+    if (block->op == FALSE) {
         // read from disk
-        while ((inb(ALTERNATE_STATUS_REG) & IDE_RDY) == 0);
-        insl(DATA_REG, (void *) sec->mem_addr, SEC_SIZE / WORD_SIZE);
-        release_bytes((uintptr_t) sec);
+        while ((inb(kAlternateStatusReg) & (unsigned) kIdeRdy) == 0);
+        insl(kDataReg, (void *) block->mem_addr, kSecSize / WORD_SIZE);
     }
+
+    if (--block->sec_num == 0) {
+        ListNode *node = Dequeue(block_queue);
+        RelBytes((uintptr_t) node);
+        RelBytes((uintptr_t) block);
+        ThreadWake(block->req_thread);
+    }
+    // TODO: wake up ide thread
 }
 
-static int ide_wait(bool check_err) {
+static int IdeWait(bool check_err) {
     uint8_t status;
-    while (((status = inb(ALTERNATE_STATUS_REG)) & IDE_BSY) != 0) {
-        if (check_err && (status & (IDE_DF | IDE_ERR)) != 0) {
+    while (((status = inb(kAlternateStatusReg)) & (unsigned) kIdeBsy) != 0) {
+        if (check_err &&
+            (status & ((unsigned) kIdeDf | (unsigned) kIdeErr)) != 0) {
             return -1;
         }
     }
     return 0;
 }
 
-void add_ide_task(ide_sec_t *ide_sec) {
-    linked_list_node_t *new_node = (linked_list_node_t *) request_bytes(sizeof(linked_list_node_t));
-    new_node->data = (uintptr_t) ide_sec;
-    new_node->next = NULL;
-    enqueue(sec_queue, new_node);
-}
-
-_Noreturn static void run_ide() {
-    linked_list_node_t *new_node;
+_Noreturn static void RunIde() {
+    ListNode *new_node;
     while (TRUE) {
-        while ((new_node = get_queue_head(sec_queue)) != NULL) {
-            ide_sec_t *new_task = (ide_sec_t *) new_node->data;
+        while ((new_node = QueueGetHead(block_queue)) != NULL) {
+            IdeBlock *new_task = GET_STRUCT(new_node, IdeBlock, node);
             if (new_task->op) {
-                w_sec(new_task->dev_no, new_task->sec_addr, (const void *) new_task->mem_addr);
+                WSec(new_task->dev_no, new_task->sec_addr,
+                     (const void *) new_task->mem_addr);
             } else {
-                r_sec(new_task->dev_no, new_task->sec_addr);
+                RSec(new_task->dev_no, new_task->sec_addr);
             }
         }
     }
 }
 
-void ide_write(uint8_t dev_no, uint32_t sec_addr, const void *src, uint32_t sec_num) {
-    for (int i = 0; i < sec_num; ++i) {
-        ide_sec_t *sec = (ide_sec_t *) request_bytes(sizeof(ide_sec_t));
-        sec->op = TRUE;
-        sec->mem_addr = (uintptr_t) src;
-        sec->dev_no = dev_no;
-        sec->sec_addr = sec_addr;
-        add_ide_task(sec);
-    }
+void IdeWrite(uint8_t dev_no, uint32_t sec_addr, const void *src,
+              uint32_t block_num) {
+    IdeBlock *block = (IdeBlock *) ReqBytes(sizeof(IdeBlock));
+    block->op = TRUE;
+    block->mem_addr = (uintptr_t) src;
+    block->dev_no = dev_no;
+    block->sec_addr = sec_addr;
+    block->sec_num = block_num * kBlockSize;
+    block->req_thread = GetCurThread();
+    block->node.next = NULL;
+    Enqueue(block_queue, &block->node);
 }
 
-void ide_read(uint8_t dev_no, uint32_t sec_addr, void *dst, uint32_t sec_num) {
-    for (int i = 0; i < sec_num; ++i) {
-        ide_sec_t *sec = (ide_sec_t *) request_bytes(sizeof(ide_sec_t));
-        sec->op = FALSE;
-        sec->mem_addr = (uintptr_t) dst;
-        sec->dev_no = dev_no;
-        sec->sec_addr = sec_addr;
-        add_ide_task(sec);
-    }
+void IdeRead(uint8_t dev_no, uint32_t sec_addr, void *dst, uint32_t
+block_num) {
+    IdeBlock *block = (IdeBlock *) ReqBytes(sizeof(IdeBlock));
+    block->op = FALSE;
+    block->mem_addr = (uintptr_t) dst;
+    block->dev_no = dev_no;
+    block->sec_addr = sec_addr;
+    block->sec_num = block_num * kBlockSize;
+    block->req_thread = GetCurThread();
+    block->node.next = NULL;
+    Enqueue(block_queue, &block->node);
 }

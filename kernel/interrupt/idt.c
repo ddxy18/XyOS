@@ -3,59 +3,77 @@
 //
 
 #include "idt.h"
+
 #include "../memory/segment.h"
 
-void set_idt_entry(uint16_t, uint16_t, uint16_t);
+static const int kIdtEntrySize = 8;
+static const int kIdtSize = kIdtEntryNum * kIdtEntrySize;
+// The base addresses of the IDT should be aligned on an 8-byte boundary to
+// maximize performance of cache line fills.
+static const uintptr_t kIdtBaseAddr = 0xc001f000;
 
-uint64_t *idt;
-IDTR_t idtr;
+// present flag is cleared
+static const int kIdtExcType = 0x0e00;
+static const int kIdtIntrType = 0x0e00;
+static const int kIdtTrapType = 0x6f00;
+static const int kIdtSyscallNum = 0x80;
+
+static const int kTssSel = 0x28;
+
+static uint64_t *const idt = (uint64_t *const) kIdtBaseAddr;
+static Idtr idtr;
 extern uintptr_t intr_vec[];
 
-void idt_init() {
-    idtr.limit = IDT_LIMIT;
-    idtr.base_addr = IDT_BASE_ADDR;
-    idt = (uint64_t *) idtr.base_addr;
+static const int IdtLimit = ((unsigned) kIdtEntryNum << 3u) - 1;
 
-    // Initialize the only TSS. Only use 'ss0' and 'esp0' to help jump to ring0 when generating interrupts in ring3.
-    // Every process should set its own 'esp0' when it's running.
-    tss = (TSS_t *) TSS_BASE_ADDR;
-    tss->ss0 = K_CODE_SEG;
-    // TODO: Every process should set esp0 when it's turn to execute.
+static void SetIdtEntry(int intr_vec_no, uint16_t seg_sel, uint16_t
+type);
+
+void IdtInit() {
+    idtr.limit = (unsigned) IdtLimit;
+    idtr.base_addr = kIdtBaseAddr;
+    asm volatile("lidt (%0)"::"r"(&idtr) : "memory");
+
+    /**
+     * Initialize the only TSS. Only use 'ss0' and 'esp0' to help jump to
+     * ring0 when generating interrupts in ring3. Every thread should set its
+     * own 'esp0' when it's running.
+     */
+    tss = (Tss *) kTssBaseAddr;
+    tss->ss0 = kKCodeSeg;
 
     // set all 256 vector numbers handler entries to a prehandler
-    uint32_t i = 0;
+    int i = 0;
     // initialize Intel predetermined exceptions
-    for (; i < IDT_EXC_NUM; ++i) {
-        set_idt_entry(i, K_CODE_SEG, IDT_EXC_TYPE);
+    for (; i < kIdtExcNum; ++i) {
+        SetIdtEntry(i, kKCodeSeg, kIdtExcType);
     }
     // initialize external interrupts
-    for (; i < IDT_ENTRY_NUM; ++i) {
-        set_idt_entry(i, K_CODE_SEG, IDT_INTR_TYPE);
+    for (; i < kIdtEntryNum; ++i) {
+        SetIdtEntry(i, kKCodeSeg, kIdtIntrType);
     }
     // TODO: allow ring3 to use 'int 0x80'
-    set_idt_entry(IDT_SYSCALL_NUM, U_CODE_SEG, IDT_TRAP_TYPE);
+    SetIdtEntry(kIdtSyscallNum, kUCodeSeg, kIdtTrapType);
 
     // Set task register. It will never be changed since now.
-    uint16_t tr = TSS_SEL;
+    uint16_t tr = kTssSel;
     asm("ltr %0" : : "r"(tr));
-
-    asm volatile("lidt (%0)"::"r"(&idtr) : "memory");
 }
 
-void set_idt_entry(uint16_t intr_vec_no, uint16_t seg_sel, uint16_t type) {
-    intr_gate_descriptor_t *intr_entry = (intr_gate_descriptor_t *) &idt[intr_vec_no];
+static void SetIdtEntry(int intr_vec_no, uint16_t seg_sel, uint16_t type) {
+    IntrGateDescriptor *intr_entry = (IntrGateDescriptor *) &idt[intr_vec_no];
     intr_entry->offset_0_15 = intr_vec[intr_vec_no];
     intr_entry->offset_16_31 = (intr_vec[intr_vec_no] >> 16u);
     intr_entry->seg_sel = seg_sel;
     intr_entry->type = type;
 }
 
-void enable_idt(uint16_t intr_vec_no) {
-    intr_gate_descriptor_t *intr_entry = (intr_gate_descriptor_t *) &idt[intr_vec_no];
+void EnableIdt(int intr_vec_no) {
+    IntrGateDescriptor *intr_entry = (IntrGateDescriptor *) &idt[intr_vec_no];
     intr_entry->type |= 0x8000u;
 }
 
-void disable_idt(uint16_t intr_vec_no) {
-    intr_gate_descriptor_t *intr_entry = (intr_gate_descriptor_t *) &idt[intr_vec_no];
+void DisableIdt(int intr_vec_no) {
+    IntrGateDescriptor *intr_entry = (IntrGateDescriptor *) &idt[intr_vec_no];
     intr_entry->type &= 0x7fffu;
 }

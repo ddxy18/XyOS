@@ -5,6 +5,12 @@
 #ifndef XYOS_DEF_H
 #define XYOS_DEF_H
 
-#define pointer_t uint32_t
+#include <stdint.h>
 
-#endif //XYOS_DEF_H
+#define bool uint8_t
+#define TRUE 1
+#define FALSE 0
+
+#define WORD_SIZE 4
+
+#endif // XYOS_DEF_H

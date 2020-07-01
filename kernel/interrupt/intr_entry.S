@@ -16,16 +16,16 @@ _alltraps:
     pushw %ax
 
     # change segment register to kernel segment
-    movl $K_DATA_SEG, %eax
+    movl $kKDataSeg, %eax
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %fs
     movw %ax, %gs
 
-    # push %esp to pass a pointer to the intr_reg_t as an argument to intr_handler_sel()
+    # push %esp to pass a pointer to the IntrReg as an argument to IntrHandlerSel()
     pushl %esp
-    # call intr_handler_sel()
-    call _intr_handler_sel
+    # call IntrHandlerSel()
+    call _IntrHandlerSel
 
     # pop argument
     pop %esp

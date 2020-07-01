@@ -8,20 +8,22 @@
 #include "../process/process.h"
 #include "../lib/list.h"
 
-typedef struct KThread {
+typedef struct Thread {
     unsigned int tid;
     uintptr_t stack_addr;
     // If the thread belongs to kernel process, 'Pcb' will be 'NULL'.
     Pcb *pcb;
     uintptr_t esp;
     ListNode node;
-} KThread;
+    // Link thread in a process as a circular list.
+    ListNode sibling;
+} Thread;
 
 void ThreadInit();
 
-KThread *ReqThread(Pcb *pcb);
+Thread *CreateThread(Pcb *pcb);
 
-void RelThread(KThread *thread);
+void DestructThread(Thread *thread);
 
 void ThreadSwitch();
 
@@ -32,21 +34,21 @@ void ThreadSwitch();
  * @param thread
  * @param start_func the first function the thread will execute
  */
-void KThreadRun(KThread *thread, void (*start_func)());
+void KThreadRun(Thread *thread, void (*start_func)());
 
 void ThreadSleep();
 
-void ThreadWake(KThread *thread);
+void ThreadWake(Thread *thread);
 
-void ThreadWakeAll(KThread **thread_list, int num);
+void ThreadWakeAll(Thread **thread_list, int num);
 
-static inline KThread *GetCurThread() {
+static inline Thread *GetCurThread() {
     /*
      * We will store current stack's upper address into Tss after a thread
      * switch, so we can find current thread structure through TSS.
      */
     uintptr_t *t = (uintptr_t *) tss->esp0;
-    return (KThread *) *t;
+    return (Thread *) *t;
 }
 
 #endif //XYOS_THREAD_H

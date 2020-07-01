@@ -9,15 +9,16 @@
 #include "idt.h"
 
 // interrupt vector numbers
-#define PF_VEC 14u
-#define TIMER_VEC 32u
-#define KEYBOARD_VEC 33u
-#define IDE_VEC 46u
+static const int kPfVec = 14;
+static const int kTimerVec = 0x20;
+static const int kKeyboardVec = 33;
+static const int kIdeVec = 46;
+static const int kSyscallVec = 0x80;
 
-void intr_init();
+void IntrInit();
 
-bool reg_intr_handler(uint16_t intr_vec, void (*handler)(intr_reg_t *));
+bool RegIntrHandler(int intr_vec_no, void (*handler)(IntrReg *));
 
-void remove_intr_handler(uint16_t intr_vec_no);
+void RemoveIntrHandler(int intr_vec_no);
 
 #endif // XYOS_INTERRUPT_H

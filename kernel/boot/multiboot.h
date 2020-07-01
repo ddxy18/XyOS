@@ -126,7 +126,7 @@ typedef struct multiboot_info {
     multiboot_uint32_t boot_device;
     // Kernel command line
     multiboot_uint32_t cmdline;
-    // Boot-Module list
+    // Boot-Module List
     multiboot_uint32_t mods_count;
     multiboot_uint32_t mods_addr;
     union {

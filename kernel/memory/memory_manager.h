@@ -7,24 +7,23 @@
 
 #include "../lib/def.h"
 
-#define AVL_MEM_ADDR 0x20000U
-
-typedef struct avl_phys_mem {
-  uintptr_t addr;
+typedef struct AvlPhysMem {
+    uintptr_t addr;
     uint32_t size;
-} avl_phys_mem_t;
+} AvlPhysMem;
 
 /**
- * @brief Get the 'avl_mem'. 'start.c' will use it to get 'avl_mem'
- * and set available memory information.
+ * @brief Get the 'avl_mem'.
  *
- * @return avl_phys_mem_t* Return address of 'avl_mem'.
+ * 'start.c' will use it to get 'avl_mem' and set available memory information.
+ *
+ * @return AvlPhysMem * Return the pointer of 'avl_mem'.
  */
-avl_phys_mem_t *get_avl_mem();
+AvlPhysMem *GetAvlMem();
 
 /**
  * @brief Open paging, reset GDT and initialize page allocator.
  */
-void mem_init();
+void MemInit();
 
-#endif // XYOS_MEMORY_MANAGER_H
+#endif //XYOS_MEMORY_MANAGER_H
