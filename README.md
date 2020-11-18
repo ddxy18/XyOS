@@ -1,9 +1,20 @@
-physical address space:<br>
-0x0~0x2f global descriptor table<br>
-0x1000~0x1fff kernel page directory<br>
-0x7c00~0xbc00 kernel central stack<br>
-0xc000~0x1deff kernel direct mapping page tables<br>
-0x1e000~0x1e066 Tss<br>
-0x1f000~0x1f3ff interrupt descriptor table<br>
-0x20000~0x20fff local advanced programmable interrupt controller registers<br>
-0xa0000~0xfffff reserved for hardware and bios<br>
+# XyOS
+It currently contains booting, memory manager, interrupt handler and thread scheduler.
+## Prerequisites
+- qemu
+- gcc
+- gdb(optional: If you want to debug the kernel, you should ensure that gdb has been installed correctly.)
+## Getting started
+- download the source code from <https://github.com/ddxy18/XyOS.git>
+- use `make all` to boot the kernel
+## Debug
+ - Use `make qemu-debug` to boot the kernel in debug mode
+ - Use `make debug` to call a gdb server to link the kernel, so we can debug the kernel through the gdb server as usual.
+ ## Design
+ - Paging is enabled and we use the buddy system to manage the whole physical memory.
+ - We have complete the clock interrupt, keyboard interrupt and disk interrupt.
+ - We use thread as the minimum unit in scheduling, so when complete the thread and process design, multithread processes may consume more quantum times than single thread process. Now Kernel threads are scheduled by the RR algorithm.
+ ## TODO
+ - file system
+ - process
+ - syscallios<br>
